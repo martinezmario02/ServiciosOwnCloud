@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: owncloud
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: owncloud
+  template:
+    metadata:
+      labels:
+        app: owncloud
+    spec:
+      containers:
+      - name: owncloud
+        image: owncloud
+        ports:
+        - containerPort: 80
+        env:
+        - name: OWNCLOUD_DB_TYPE
+          value: "mysql"
+        - name: OWNCLOUD_DB_NAME
+          value: "owncloud"
+        - name: OWNCLOUD_DB_USERNAME
+          value: "admin"
+        - name: OWNCLOUD_DB_PASSWORD
+          value: "password"
+        volumeMounts:
+        - name: owncloud-storage
+          mountPath: "/mnt/data"
+      volumes:
+      - name: owncloud-storage
+        persistentVolumeClaim:
+          claimName: owncloud-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: owncloud-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

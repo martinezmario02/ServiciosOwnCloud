@@ -1,0 +1,170 @@
+services:
+  # Balanceador de Carga con puertos ajustados
+  haproxy:
+    image: haproxy:latest
+    container_name: haproxy
+    restart: always
+    ports:
+      - "8081:80"  
+      - "8444:443"  
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+
+    depends_on:
+      - owncloud1
+      - owncloud2
+    networks:
+      - internal_net
+
+  # Servidor OwnCloud 1
+  owncloud1:
+    image: owncloud/server:latest
+    container_name: owncloud1
+    restart: always
+    ports:
+      - "8082:8080"
+    environment:
+      OWNCLOUD_DB_TYPE: mysql
+      OWNCLOUD_DB_HOST: mariadb-primary
+      OWNCLOUD_DB_NAME: owncloud
+      OWNCLOUD_DB_USERNAME: owncloud
+      OWNCLOUD_DB_PASSWORD: supersecret
+      OWNCLOUD_ADMIN_USERNAME: admin
+      OWNCLOUD_ADMIN_PASSWORD: adminpassword
+      OWNCLOUD_REDIS_ENABLED: "true"
+      OWNCLOUD_REDIS_HOST: redis1
+      OWNCLOUD_REDIS_PASSWORD: redispassword
+      OWNCLOUD_LDAP_ENABLED: "true"
+      OWNCLOUD_LDAP_HOST: openldap1
+      OWNCLOUD_LDAP_PORT: 3389 
+      OWNCLOUD_LDAP_BASE_DN: dc=example,dc=org
+      OWNCLOUD_LDAP_USER_FILTER: "(objectClass=inetOrgPerson)"
+      OWNCLOUD_LDAP_GROUP_FILTER: "(objectClass=groupOfNames)"
+    depends_on:
+      - mariadb-primary
+      - redis1
+      - openldap1
+    volumes:
+      - nfs_storage:/mnt/data
+    networks:
+      - internal_net
+
+  # Servidor OwnCloud 2
+  owncloud2:
+    image: owncloud/server:latest
+    container_name: owncloud2
+    restart: always
+    ports:
+      - "8083:8080"
+    environment:
+      OWNCLOUD_DB_TYPE: mysql
+      OWNCLOUD_DB_HOST: mariadb-primary
+      OWNCLOUD_DB_NAME: owncloud
+      OWNCLOUD_DB_USERNAME: owncloud
+      OWNCLOUD_DB_PASSWORD: supersecret
+      OWNCLOUD_ADMIN_USERNAME: admin
+      OWNCLOUD_ADMIN_PASSWORD: adminpassword
+      OWNCLOUD_REDIS_ENABLED: "true"
+      OWNCLOUD_REDIS_HOST: redis1
+      OWNCLOUD_REDIS_PASSWORD: redispassword
+      OWNCLOUD_LDAP_ENABLED: "true"
+      OWNCLOUD_LDAP_HOST: openldap1
+      OWNCLOUD_LDAP_PORT: 3389
+      OWNCLOUD_LDAP_BASE_DN: dc=example,dc=org
+      OWNCLOUD_LDAP_USER_FILTER: "(objectClass=inetOrgPerson)"
+      OWNCLOUD_LDAP_GROUP_FILTER: "(objectClass=groupOfNames)"
+    depends_on:
+      - mariadb-primary
+      - redis1
+      - openldap1
+    volumes:
+      - nfs_storage:/mnt/data
+    networks:
+      - internal_net
+
+  # Base de datos primaria
+  mariadb-primary:
+    image: mariadb:latest
+    container_name: mariadb-primary
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: owncloud
+      MYSQL_USER: owncloud
+      MYSQL_PASSWORD: supersecret
+    volumes:
+      - ./data/mariadb-primary:/var/lib/mysql
+    networks:
+      - internal_net
+
+  # Réplica de base de datos
+  mariadb-replica:
+    image: mariadb:latest
+    container_name: mariadb-replica
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: owncloud
+      MYSQL_USER: owncloud
+      MYSQL_PASSWORD: supersecret
+      MYSQL_REPLICATION_MODE: slave
+      MYSQL_MASTER_HOST: mariadb-primary
+      MYSQL_MASTER_PORT: 3307  
+      MYSQL_MASTER_USER: root
+      MYSQL_MASTER_PASSWORD: rootpassword
+    volumes:
+      - ./data/mariadb-replica:/var/lib/mysql
+    networks:
+      - internal_net
+    depends_on:
+      - mariadb-primary
+
+  # Servidor Redis
+  redis1:
+    image: redis:latest
+    container_name: redis1
+    restart: always
+    command: redis-server --requirepass redispassword
+    ports:
+      - "6380:6379" 
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - internal_net
+
+  # Servidor OpenLDAP 
+  openldap1:
+    image: osixia/openldap:latest
+    container_name: openldap1
+    restart: always
+    environment:
+      LDAP_ORGANISATION: "MiEmpresa"
+      LDAP_DOMAIN: "example.org"
+      LDAP_ADMIN_PASSWORD: admin
+    ports:
+      - "3389:389"  
+      - "6636:636"  
+    volumes:
+      - ./data/slapd/config:/etc/ldap/slapd.d
+      - ./data/slapd/database:/var/lib/ldap
+    networks:
+      - internal_net
+
+  # Servidor NFS
+  nfs:
+    image: itsthenetwork/nfs-server-alpine:latest
+    container_name: nfs
+    restart: always
+    environment:
+      SHARED_DIRECTORY: "/exports"
+    volumes:
+      - ./data/nfs:/exports
+    networks:
+      - internal_net
+
+volumes:
+  nfs_storage:
+
+networks:
+  internal_net:
+    driver: bridge

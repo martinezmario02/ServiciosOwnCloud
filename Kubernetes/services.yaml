@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: owncloud-service
+spec:
+  selector:
+    app: owncloud
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-service
+spec:
+  selector:
+    app: mariadb
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-service
+spec:
+  selector:
+    app: openldap
+  ports:
+    - protocol: TCP
+      port: 389
+      targetPort: 389
